@@ -1,5 +1,4 @@
 use regex::Regex;
-use std::collections::HashSet;
 use std::env;
 use std::fs;
 
@@ -12,7 +11,7 @@ fn is_in_range(input: &str, unit: &str, min: i32, max: i32) -> bool {
     .unwrap_or(false)
 }
 
-fn is_valid_pp_entry(key: &str, input: &str) -> bool {
+fn is_valid_field(key: &str, input: &str) -> bool {
   match key {
     "byr" => is_in_range(input, "", 1920, 2002),
     "iyr" => is_in_range(input, "", 2010, 2020),
@@ -29,36 +28,31 @@ fn is_valid_pp_entry(key: &str, input: &str) -> bool {
 
 fn main() {
   let args: Vec<String> = env::args().collect();
-  let contents = fs::read_to_string(&args[1]).expect("Something went wrong reading the file");
+  let contents = fs::read_to_string(&args[1]).unwrap();
   let passports: Vec<&str> = contents.split("\n\n").collect();
-  let separator = Regex::new(r"(\n| )").expect("Invalid regex");
 
-  let mut valid = 0;
   let required_field_count = 7;
+  let mut current_field_count = 0;
 
   for passport in passports {
-    // parse input and filter valid properties
-    let parts: Vec<(&str, &str)> = separator
+    // parse fields
+    // assume no duplicate entries
+    let valid_fields = Regex::new(r"(\n| )")
+      .unwrap()
       .split(passport)
       .filter(|s| s.len() > 0)
       .map(|s| s.split(":").collect::<Vec<&str>>())
-      .filter_map(|v| match v.len() == 2 && is_valid_pp_entry(v[0], v[1]) {
+      .filter_map(|v| match v.len() == 2 && is_valid_field(v[0], v[1]) {
         true => Some((v[0], v[1])),
         false => None,
       })
-      .collect();
-
-    // prevent duplicate entries from beeing counted
-    let mut unique: HashSet<&str> = HashSet::new();
-    for part in parts {
-      unique.insert(part.0);
-    }
+      .count();
 
     // check if all required fields are there
-    if unique.len() == required_field_count {
-      valid = valid + 1;
+    if valid_fields == required_field_count {
+      current_field_count = current_field_count + 1;
     }
   }
 
-  println!("Counted {:?} valid passports", valid)
+  println!("Counted {:?} valid passports", current_field_count)
 }
