@@ -13,7 +13,7 @@ lazy_static! {
 fn is_in_range(input: &str, unit: &str, min: i32, max: i32) -> bool {
   RANGE_REGEX
     .captures(input)
-    .and_then(|m| if &m[2] == unit { Some(m) } else { None })
+    .filter(|m| &m[2] == unit)
     .and_then(|m| m[1].parse::<i32>().ok())
     .and_then(|v| Some(v >= min && v <= max))
     .unwrap_or(false)
