@@ -40,11 +40,12 @@ fn main() {
   let required_field_count = 7;
   let mut current_field_count = 0;
 
+  let field_separator_regex = Regex::new(r"(\n| )").unwrap();
+
   for passport in passports {
     // parse fields
     // assume no duplicate entries
-    let valid_fields = Regex::new(r"(\n| )")
-      .unwrap()
+    let valid_fields = field_separator_regex
       .split(passport)
       .filter(|s| s.len() > 0)
       .map(|s| s.split(":").collect::<Vec<&str>>())
