@@ -47,12 +47,8 @@ fn main() {
     // assume no duplicate entries
     let valid_fields = field_separator_regex
       .split(passport)
-      .filter(|s| s.len() > 0)
       .map(|s| s.split(":").collect::<Vec<&str>>())
-      .filter_map(|v| match v.len() == 2 && is_valid_field(v[0], v[1]) {
-        true => Some((v[0], v[1])),
-        false => None,
-      })
+      .filter(|v| v.len() == 2 && is_valid_field(v[0], v[1]))
       .count();
 
     // check if all required fields are there
