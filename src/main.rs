@@ -1,61 +1,42 @@
-use lazy_static::lazy_static;
-use regex::Regex;
 use std::env;
 use std::fs;
+use std::str::Bytes;
 
-lazy_static! {
-  static ref RANGE_REGEX: Regex = Regex::new(r"^(\d+|[a-f])(.*)").unwrap();
-  static ref COLOR_CODE_REGEX: Regex = Regex::new(r"^#(\d|[a-f]){6}$").unwrap();
-  static ref EYE_COLOR_REGEX: Regex = Regex::new(r"^(amb|blu|brn|gry|grn|hzl|oth)$").unwrap();
-  static ref ID_REGEX: Regex = Regex::new(r"^\d{9}$").unwrap();
-}
-
-fn is_in_range(input: &str, unit: &str, min: i32, max: i32) -> bool {
-  RANGE_REGEX
-    .captures(input)
-    .filter(|m| &m[2] == unit)
-    .and_then(|m| m[1].parse::<i32>().ok())
-    .and_then(|v| Some(v >= min && v <= max))
-    .unwrap_or(false)
-}
-
-fn is_valid_field(key: &str, input: &str) -> bool {
-  match key {
-    "byr" => is_in_range(input, "", 1920, 2002),
-    "iyr" => is_in_range(input, "", 2010, 2020),
-    "eyr" => is_in_range(input, "", 2020, 2030),
-    "hgt" => is_in_range(input, "cm", 150, 193) || is_in_range(input, "in", 59, 76),
-    "hcl" => COLOR_CODE_REGEX.is_match(input),
-    "ecl" => EYE_COLOR_REGEX.is_match(input),
-    "pid" => ID_REGEX.is_match(input),
-    _ => false,
+fn get_binary_partition_index(input: Bytes, sym: u8) -> u32 {
+  let mut value = 0;
+  let mut increment = (2 as u32).pow(input.len() as u32);
+  for v in input {
+    increment /= 2;
+    if v == sym {
+      value += increment
+    }
   }
+  return value;
+}
+
+fn get_seat_id(ticket: &str) -> u32 {
+  let row = get_binary_partition_index((&ticket[..7]).bytes(), b'B');
+  let column = get_binary_partition_index((&ticket[7..]).bytes(), b'R');
+  return row * 8 + column;
 }
 
 fn main() {
   let args: Vec<String> = env::args().collect();
   let contents = fs::read_to_string(&args[1]).unwrap();
-  let passports: Vec<&str> = contents.split("\n\n").collect();
 
-  let required_field_count = 7;
-  let mut current_field_count = 0;
+  let tickets: Vec<&str> = contents.split("\n").collect();
+  let mut seat_indices: Vec<u32> = tickets
+    .into_iter()
+    .filter(|v| v.len() > 0)
+    .map(|v| get_seat_id(v))
+    .collect();
 
-  let field_separator_regex = Regex::new(r"(\n| )").unwrap();
-
-  for passport in passports {
-    // parse fields
-    // assume no duplicate entries
-    let valid_fields = field_separator_regex
-      .split(passport)
-      .map(|s| s.split(":").collect::<Vec<&str>>())
-      .filter(|v| v.len() == 2 && is_valid_field(v[0], v[1]))
-      .count();
-
-    // check if all required fields are there
-    if valid_fields == required_field_count {
-      current_field_count = current_field_count + 1;
-    }
+  seat_indices.sort();
+  let mut current = seat_indices[0];
+  for seat in seat_indices {
+    if seat != current {
+      println!("seat {} is unoccupied", current);
+    } 
+    current = seat + 1;
   }
-
-  println!("Counted {:?} valid passports", current_field_count)
 }
