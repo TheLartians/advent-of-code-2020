@@ -10,7 +10,9 @@ fn parse_rule_part(input: &str) -> (String, u32) {
   lazy_static! {
     static ref RULE_PART_REGEX: Regex = Regex::new(r"^(\d) ([a-z ]*) (?:bag|bags)$").unwrap();
   }
+
   let capture = RULE_PART_REGEX.captures(input).unwrap();
+
   return (
     String::from(capture.get(2).unwrap().as_str()),
     capture.get(1).unwrap().as_str().parse::<u32>().unwrap(),
@@ -31,7 +33,6 @@ fn parse_rule(input: &str) -> (String, Vec<(String, u32)>) {
     .filter(|s| *s != "no other bags")
     .map(|s| parse_rule_part(s))
     .collect();
-
   return (name, content);
 }
 
@@ -77,13 +78,6 @@ fn main() {
     .filter(|s| s.len() > 0)
     .map(|s| parse_rule(&s))
     .collect();
-
-  let mut dependencies: HashMap<&str, Vec<&str>> = HashMap::new();
-  for (name, content) in &rules {
-    for (bag, _) in content {
-      dependencies.entry(bag).or_default().push(&name);
-    }
-  }
 
   println!(
     "shiny gold contains {} other bags.",
