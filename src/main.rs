@@ -1,7 +1,6 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
@@ -36,28 +35,34 @@ fn parse_rule(input: &str) -> (String, Vec<(String, u32)>) {
   return (name, content);
 }
 
-fn push_dependencies<'a>(
-  res: &mut HashSet<&'a str>,
-  item: &str,
-  dep_map: &'a HashMap<&str, Vec<&str>>,
-) {
-  match dep_map.get(item) {
-    Some(deps) => {
-      for dep in deps {
-        if !res.contains(dep) {
-          push_dependencies(res, dep, dep_map);
-          res.insert(dep);
+fn add_inner_bags<'a>(
+  res: &mut HashMap<&'a str, u32>,
+  item: &'a str,
+  rules: &'a HashMap<String, Vec<(String, u32)>>,
+) -> u32 {
+  let mut total = 1;
+
+  match rules.get(item) {
+    Some(rule) => {
+      for (color, inner_count) in rule {
+        match res.get(color as &str) {
+          Some(content_count) => {
+            total += inner_count * content_count;
+          }
+          None => total += inner_count * add_inner_bags(res, color, rules),
         }
       }
     }
     None => {}
   }
+
+  res.insert(&item, total);
+  return total;
 }
 
-fn get_dependencies<'a>(item: &str, dep_map: &'a HashMap<&str, Vec<&str>>) -> HashSet<&'a str> {
-  let mut res = HashSet::new();
-  push_dependencies(&mut res, item, dep_map);
-  return res;
+fn get_inner_bag_count(item: &str, rules: &HashMap<String, Vec<(String, u32)>>) -> u32 {
+  let mut res = HashMap::new();
+  return add_inner_bags(&mut res, item, rules) - 1;
 }
 
 fn main() {
@@ -81,7 +86,7 @@ fn main() {
   }
 
   println!(
-    "shiny gold can be contained in {} bags.",
-    get_dependencies("shiny gold", &dependencies).len()
+    "shiny gold contains {} other bags.",
+    get_inner_bag_count("shiny gold", &rules)
   );
 }
