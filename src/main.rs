@@ -20,14 +20,16 @@ fn parse_instruction(input: &str) -> (Instruction, i32) {
   return (instruction, value);
 }
 
-fn run_until_loop(instructions: &Vec<(Instruction, i32)>) -> i32 {
+fn run_until_loop<'a>(instructions: &'a Vec<(Instruction, i32)>) -> Result<i32, i32> {
   let mut accumulator = 0;
   let mut position = 0;
   let mut history: Vec<bool> = instructions.iter().map(|_| false).collect();
 
   loop {
-    if history[position] {
-      break;
+    if position == instructions.len() {
+      return Ok(accumulator);
+    } else if history[position] {
+      return Err(accumulator);
     } else {
       history[position] = true;
       let (instruction, value) = &instructions[position];
@@ -45,8 +47,6 @@ fn run_until_loop(instructions: &Vec<(Instruction, i32)>) -> i32 {
       }
     }
   }
-
-  return accumulator;
 }
 
 fn main() {
@@ -55,15 +55,31 @@ fn main() {
   let filename: String = args.next().unwrap();
   let input = io::BufReader::new(File::open(filename).unwrap());
 
-  let instructions: Vec<(Instruction, i32)> = input
+  let mut instructions: Vec<(Instruction, i32)> = input
     .lines()
     .filter_map(|s| s.ok())
     .filter(|s| s.len() > 0)
     .map(|s| parse_instruction(&s))
     .collect();
 
-  println!(
-    "the program repeated the loop with {}",
-    run_until_loop(&instructions)
-  );
+  for i in 0..instructions.len() {
+    let mut result: Result<i32, i32> = Err(0);
+    match instructions[i].0 {
+      Instruction::JMP => {
+        instructions[i].0 = Instruction::NOP;
+        result = run_until_loop(&instructions);
+        instructions[i].0 = Instruction::JMP;
+      }
+      Instruction::NOP => {
+        instructions[i].0 = Instruction::JMP;
+        result = run_until_loop(&instructions);
+        instructions[i].0 = Instruction::NOP;
+      }
+      _ => {}
+    }
+    if result.is_ok() {
+      println!("changed instruction at {} and got result {:?}", i, result);
+      break;
+    }
+  }
 }
