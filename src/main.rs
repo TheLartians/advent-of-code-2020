@@ -20,7 +20,7 @@ fn parse_instruction(input: &str) -> (Instruction, i32) {
   return (instruction, value);
 }
 
-fn run_until_loop<'a>(instructions: &'a Vec<(Instruction, i32)>) -> Result<i32, i32> {
+fn run_bytecode<'a>(instructions: &'a Vec<(Instruction, i32)>) -> Result<i32, i32> {
   let mut accumulator = 0;
   let mut position = 0;
   let mut history: Vec<bool> = instructions.iter().map(|_| false).collect();
@@ -62,17 +62,17 @@ fn main() {
     .map(|s| parse_instruction(&s))
     .collect();
 
+  let mut result: Result<i32, i32> = Err(0);
   for i in 0..instructions.len() {
-    let mut result: Result<i32, i32> = Err(0);
     match instructions[i].0 {
       Instruction::JMP => {
         instructions[i].0 = Instruction::NOP;
-        result = run_until_loop(&instructions);
+        result = run_bytecode(&instructions);
         instructions[i].0 = Instruction::JMP;
       }
       Instruction::NOP => {
         instructions[i].0 = Instruction::JMP;
-        result = run_until_loop(&instructions);
+        result = run_bytecode(&instructions);
         instructions[i].0 = Instruction::NOP;
       }
       _ => {}
