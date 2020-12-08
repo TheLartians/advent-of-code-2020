@@ -77,8 +77,8 @@ fn main() {
       }
       _ => {}
     }
-    if result.is_ok() {
-      println!("changed instruction at {} and got result {:?}", i, result);
+    if let Ok(res) = result {
+      println!("changed instruction at {} and got result {:?}", i, res);
       break;
     }
   }
