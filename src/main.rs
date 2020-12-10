@@ -2,6 +2,7 @@ use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::string::String;
+use std::cmp;
 
 fn main() {
   let mut args = env::args();
@@ -9,29 +10,24 @@ fn main() {
   let filename: String = args.next().unwrap();
   let input = io::BufReader::new(File::open(filename).unwrap());
 
-  let mut adaptors: Vec<u64> = input
+  let mut adaptors: Vec<usize> = input
     .lines()
     .filter_map(|s| s.ok())
     .filter(|s| s.len() > 0)
-    .map(|s| s.parse::<u64>().unwrap())
+    .map(|s| s.parse::<usize>().unwrap())
     .collect();
   adaptors.sort();
   let target = adaptors.last().unwrap() + 3;
+  adaptors.push(target);
 
-  let mut joltages: Vec<u64> = [0].to_vec();
-  joltages.append(&mut adaptors);
-  joltages.push(target);
+  let mut reachable_joltages: Vec<u64> = vec![0; target+1];
+  reachable_joltages[0] = 1;
 
-  let differences = (0..joltages.len() - 1).map(|i| joltages[i + 1] - joltages[i]);
-  let one_jolt_differences = differences.clone().filter(|v| v == &1).count();
-  let three_jolt_differences = differences.clone().filter(|v| v == &3).count();
-
-  println!(
-    "there are {} one and {} three jolt differences",
-    one_jolt_differences, three_jolt_differences
-  );
-  println!(
-    "their product is {}",
-    one_jolt_differences * three_jolt_differences
-  );
+  for adaptor in &adaptors {
+    for i in 1..cmp::min(3,*adaptor)+1 {
+      reachable_joltages[*adaptor] += reachable_joltages[*adaptor-i];
+    }
+  }
+  
+  println!("there are {} possible configurations", reachable_joltages.last().unwrap());
 }
