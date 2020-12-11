@@ -57,7 +57,7 @@ fn count_neighbors(input: &Vec<u8>, rows: usize, columns: usize) -> Vec<u8> {
   for i in 0..columns {
     for j in 0..rows {
       if input[get_index(i, j).unwrap()] == b'#' {
-        let mut visible: Vec<bool> = directions.iter().map(|_| true).collect();
+        let mut visible = vec![true; directions.len()];
         for k in 1..cmp::max(rows, columns) {
           for (vi, (di, dj)) in directions.iter().enumerate() {
             if visible[vi] {
