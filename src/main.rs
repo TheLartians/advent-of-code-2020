@@ -37,7 +37,7 @@ fn count_neighbors(input: &Vec<u8>, rows: usize, columns: usize) -> Vec<u8> {
     }
   };
 
-  let directions = [
+  const DIRECTIONS: [(i32,i32); 8] = [
     (-1, -1),
     (-1, 0),
     (-1, 1),
@@ -57,9 +57,9 @@ fn count_neighbors(input: &Vec<u8>, rows: usize, columns: usize) -> Vec<u8> {
   for i in 0..columns {
     for j in 0..rows {
       if input[get_index(i, j).unwrap()] == b'#' {
-        let mut visible = vec![true; directions.len()];
+        let mut visible = [true; DIRECTIONS.len()];
         for k in 1..cmp::max(rows, columns) {
-          for (vi, (di, dj)) in directions.iter().enumerate() {
+          for (vi, (di, dj)) in DIRECTIONS.iter().enumerate() {
             if visible[vi] {
               visible[vi] &= !set_neighbouring(
                 &mut result,
