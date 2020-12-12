@@ -18,10 +18,12 @@ fn main() {
 
   let target = 2020;
 
-  for v in &input {
-    if input.binary_search(&(target - v)).is_ok() {
-      println!("the result is {}", v * (target - v));
-      break;
+  for v1 in &input {
+    for v2 in &input {
+      if input.binary_search(&(target - v1 - v2)).is_ok() {
+        println!("the result is {}", v1 * v2 * (target - v1 - v2));
+        return;
+      }
     }
   }
 }
