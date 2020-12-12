@@ -1,79 +1,44 @@
-use std::cmp;
 use std::env;
-use std::fmt;
+use std::f64::consts::PI;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::string::String;
 
-fn print_matrix<T: fmt::Display>(input: &Vec<T>, columns: usize, printer: fn(&T) -> char) {
-  for i in 0..input.len() {
-    print!("{}", printer(&input[i]));
-    if (i + 1) % columns == 0 {
-      print!("\n");
-    }
-  }
+#[derive(Debug)]
+enum Instruction {
+  N,S,E,W,L,R,F
 }
 
-fn count_neighbors(input: &Vec<u8>, rows: usize, columns: usize) -> Vec<u8> {
-  let mut result: Vec<u8> = vec![0; input.len()];
+fn parse_direction(input: &str) -> (Instruction, i64) {
+  let direction = match input.bytes().next().unwrap() {
+    b'N' => Ok(Instruction::N),
+    b'S' => Ok(Instruction::S),
+    b'E' => Ok(Instruction::E),
+    b'W' => Ok(Instruction::W),
+    b'L' => Ok(Instruction::L),
+    b'R' => Ok(Instruction::R),
+    b'F' => Ok(Instruction::F),
+    _ => Err(()),
+  }.unwrap();
+  let distance = input[1..].parse::<i64>().unwrap();
+  return (direction, distance)
+}
 
-  let get_index = |i: usize, j: usize| {
-    if i < columns && j < rows {
-      return Ok(i + j * columns);
-    } else {
-      return Err(());
-    }
-  };
+#[derive(Debug)]
+struct Ferry {
+  angle: f64,
+  position: (i64,i64),
+}
 
-  let set_neighbouring = |res: &mut Vec<u8>, i, j| {
-    if let Ok(idx) = get_index(i, j) {
-      res[idx] += 1;
-      return match input[idx] {
-        b'#' | b'L' => true,
-        _ => false,
-      };
-    } else {
-      return true;
-    }
-  };
-
-  const DIRECTIONS: [(i32,i32); 8] = [
-    (-1, -1),
-    (-1, 0),
-    (-1, 1),
-    (0, -1),
-    (0, 1),
-    (1, -1),
-    (1, 0),
-    (1, 1),
-  ];
-
-  let get_directional_index = |i: usize, k: usize, d: i32| match d {
-    1 => i + k,
-    -1 => i.wrapping_sub(k),
-    _ => i,
-  };
-
-  for i in 0..columns {
-    for j in 0..rows {
-      if input[get_index(i, j).unwrap()] == b'#' {
-        let mut visible = [true; DIRECTIONS.len()];
-        for k in 1..cmp::max(rows, columns) {
-          for (vi, (di, dj)) in DIRECTIONS.iter().enumerate() {
-            if visible[vi] {
-              visible[vi] &= !set_neighbouring(
-                &mut result,
-                get_directional_index(i, k, *di),
-                get_directional_index(j, k, *dj),
-              );
-            }
-          }
-        }
-      }
-    }
+impl Ferry {
+  fn move_by_angle(&mut self, distance: i64, angle: f64) {
+    self.position.0 += (angle.cos()*(distance as f64)).round() as i64;
+    self.position.1 += (angle.sin()*(distance as f64)).round() as i64;
   }
 
-  return result;
+  fn move_forward(&mut self, distance: i64) {
+    self.move_by_angle(distance, self.angle);
+  }
 }
 
 fn main() {
@@ -81,50 +46,25 @@ fn main() {
   args.next();
   let filename: String = args.next().unwrap();
   let get_input = || io::BufReader::new(File::open(&filename).unwrap());
-  let rows = get_input().lines().count();
-  let columns = get_input().lines().next().unwrap().unwrap().len();
 
-  let mut state: Vec<u8> = get_input()
+  let input = get_input()
     .lines()
     .filter_map(|s| s.ok())
-    .map(|s| s.bytes().collect::<Vec<u8>>())
-    .flatten()
-    .collect();
+    .map(|s| parse_direction(&s));
 
-  // check if input is rectangular
-  assert_eq!(state.len(), rows * columns);
+  let mut ferry = Ferry{  angle: 0., position: (0,0), };
 
-  let mut step = 0;
-  loop {
-    let neighbors = count_neighbors(&state, rows, columns);
-    let mut changed = false;
-    for i in 0..state.len() {
-      match state[i] {
-        b'L' => {
-          if neighbors[i] == 0 {
-            state[i] = b'#';
-            changed = true;
-          }
-        }
-        b'#' => {
-          if neighbors[i] >= 5 {
-            state[i] = b'L';
-            changed = true;
-          }
-        }
-        _ => {}
-      }
+  for (direction, distance) in input {
+    match direction {
+      Instruction::N => ferry.move_by_angle(distance, PI/2.),
+      Instruction::S => ferry.move_by_angle(distance, -PI/2.),
+      Instruction::E => ferry.move_by_angle(distance, 0.),
+      Instruction::W => ferry.move_by_angle(distance, PI),
+      Instruction::L => ferry.angle += (distance as f64)/180. * PI,
+      Instruction::R => ferry.angle -= (distance as f64)/180. * PI,
+      Instruction::F => ferry.move_forward(distance),
     }
-    if !changed {
-      break;
-    }
-    step += 1;
-    println!(
-      "step {}: there are now {} seats occupied",
-      step,
-      state.iter().filter(|&&v| v == b'#').count()
-    );
+
+    println!("ferry updated: {:?}. distance from start: {}", ferry, ferry.position.0.abs() + ferry.position.1.abs())
   }
-
-  print_matrix(&state, columns, |&v| v as char);
 }
