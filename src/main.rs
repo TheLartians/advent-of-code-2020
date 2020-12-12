@@ -5,16 +5,21 @@ use std::string::String;
 
 fn is_valid_password(input: &str) -> bool {
   let mut it = input.split(' ');
-  let policy: Vec<usize> = it
+  let policy = it
     .next()
     .unwrap()
     .split('-')
-    .map(|s| s.parse::<usize>().unwrap())
-    .collect();
+    .map(|s| s.parse::<usize>().unwrap());
   let letter = it.next().unwrap().bytes().next().unwrap();
   let pw = it.next().unwrap();
-  let count = pw.bytes().filter(|&b| b == letter).count();
-  return count >= policy[0] && count <= policy[1];
+
+  return policy.fold(0, |c, i| {
+    if pw.as_bytes()[i - 1] == letter {
+      c + 1
+    } else {
+      c
+    }
+  }) == 1;
 }
 
 fn main() {
