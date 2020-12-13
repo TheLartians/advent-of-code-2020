@@ -1,8 +1,8 @@
+use num::integer::lcm;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::string::String;
-use num::integer::lcm;
 
 fn main() {
   let mut args = env::args();
@@ -24,15 +24,14 @@ fn main() {
     .map(|(i, s)| (i, s.parse::<Scalar>().unwrap()))
     .collect::<Vec<(usize, Scalar)>>();
 
-  let mut t: Scalar = 0;
+  let mut t = 0;
   let mut period = 1;
   let mut current = 0;
-  
   while current < departure_times.len() {
-    let (i,b) = departure_times[current];
-    if (t+i) % b == 0 {
+    let (i, b) = departure_times[current];
+    if (t + i) % b == 0 {
       current += 1;
-      period = lcm(period,b);
+      period = lcm(period, b);
       println!("found {} at {} with period {}", current, t, period)
     }
     t += period;
