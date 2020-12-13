@@ -2,6 +2,7 @@ use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::string::String;
+use num::integer::lcm;
 
 fn main() {
   let mut args = env::args();
@@ -11,24 +12,29 @@ fn main() {
 
   let mut input = get_input().lines().filter_map(|s| s.ok());
 
-  let start_time = input.next().unwrap().parse::<u64>().unwrap();
+  type Scalar = usize;
+
+  input.next();
   let departure_times = input
     .next()
     .unwrap()
     .split(',')
-    .filter(|&s| s != "x")
-    .map(|s| s.parse::<u64>().unwrap())
-    .collect::<Vec<u64>>();
+    .enumerate()
+    .filter(|&(_, s)| s != "x")
+    .map(|(i, s)| (i, s.parse::<Scalar>().unwrap()))
+    .collect::<Vec<(usize, Scalar)>>();
 
-  let mut current = start_time;
-  'outer: loop {
-    for bus in &departure_times {
-      if current % bus == 0 {
-        println!("the first bus is {} and arrives at {}", bus, current);
-        println!("the result is {}", (current - start_time) * bus);
-        break 'outer;
-      }
+  let mut t: Scalar = 0;
+  let mut period = 1;
+  let mut current = 0;
+  
+  while current < departure_times.len() {
+    let (i,b) = departure_times[current];
+    if (t+i) % b == 0 {
+      current += 1;
+      period = lcm(period,b);
+      println!("found {} at {} with period {}", current, t, period)
     }
-    current += 1;
+    t += period;
   }
 }
