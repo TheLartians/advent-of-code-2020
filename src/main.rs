@@ -4,18 +4,13 @@ use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
-use std::mem;
 use std::string::String;
 
-#[macro_use]
-extern crate generator;
-use generator::{Generator, Gn};
-
-type Scalar = usize;
+type Scalar = u64;
 
 fn parse_mask(input: &str) -> (Scalar, Scalar) {
   let mut on_bits: Scalar = 0;
-  let mut floating_bits: Scalar = 0;
+  let mut off_bits: Scalar = !0;
   input
     .bytes()
     .enumerate()
@@ -23,11 +18,11 @@ fn parse_mask(input: &str) -> (Scalar, Scalar) {
     .for_each(|(i, v)| {
       if v == b'1' {
         on_bits |= 1 << i;
-      } else if v == b'X' {
-        floating_bits |= 1 << i;
+      } else if v == b'0' {
+        off_bits &= !(1 << i);
       }
     });
-  return (on_bits, floating_bits);
+  return (on_bits, off_bits);
 }
 
 fn parse_set(input: &str) -> (usize, Scalar) {
@@ -40,30 +35,6 @@ fn parse_set(input: &str) -> (usize, Scalar) {
   return (loc, val);
 }
 
-fn for_all_floating<'a>(
-  value: Scalar,
-  floating_bits: &'a Scalar,
-  current: usize,
-) -> Generator<(), Scalar> {
-  return Gn::new_scoped(move |mut s| {
-    let n = mem::size_of_val(floating_bits) * 8;
-    if current != n {
-      for v in for_all_floating(value, floating_bits, current + 1) {
-        if floating_bits & (1 << current) != 0 {
-          let mask = 1 << current;
-          s.yield_(v & !mask);
-          s.yield_(v | mask);
-        } else {
-          s.yield_(v);
-        }
-      }
-    } else {
-      s.yield_(value);
-    }
-    done!();
-  });
-}
-
 fn main() {
   let mut args = env::args();
   args.next();
@@ -71,19 +42,18 @@ fn main() {
   let get_input = || io::BufReader::new(File::open(&filename).unwrap());
 
   let input = get_input().lines().filter_map(|s| s.ok());
-  let (mut on_bits, mut floating_bits) = (0, 0);
+  
+  let (mut on_bits, mut off_bits) = (0, !0);
   let mut memory: HashMap<usize, Scalar> = HashMap::new();
 
   for line in input {
     if &line[..4] == "mask" {
       let new_mask = parse_mask(&line);
       on_bits = new_mask.0;
-      floating_bits = new_mask.1;
+      off_bits = new_mask.1;
     } else {
       let (loc, val) = parse_set(&line);
-      for floc in for_all_floating(loc, &floating_bits, 0) {
-        memory.insert(floc | on_bits, val);
-      }
+      memory.insert(loc, (val | on_bits) & off_bits);
     }
   }
 
