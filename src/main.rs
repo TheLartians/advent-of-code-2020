@@ -81,8 +81,8 @@ fn main() {
       floating_bits = new_mask.1;
     } else {
       let (loc, val) = parse_set(&line);
-      for floc in for_all_floating(loc, &floating_bits, 0) {
-        memory.insert(floc | on_bits, val);
+      for floc in for_all_floating(loc | on_bits, &floating_bits, 0) {
+        memory.insert(floc, val);
       }
     }
   }
