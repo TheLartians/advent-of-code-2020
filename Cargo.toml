@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 regex = "1.4.2"
 lazy_static = "1.4.0"
+generator = "0.6"
