@@ -40,9 +40,9 @@ fn parse_set(input: &str) -> (usize, Scalar) {
   return (loc, val);
 }
 
-fn for_all_floating<'a>(
+fn for_all_floating(
   value: Scalar,
-  floating_bits: &'a Scalar,
+  floating_bits: &Scalar,
   current: usize,
 ) -> Generator<(), Scalar> {
   return Gn::new_scoped(move |mut s| {
