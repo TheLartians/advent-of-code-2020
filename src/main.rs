@@ -24,7 +24,9 @@ fn main() {
     .collect();
   let mut current = *input.last().unwrap();
 
-  for i in state.len()..2019 {
+  let n = 30000000;
+
+  for i in state.len()..n - 1 {
     let next;
     if let Some(j) = state.get(&current) {
       next = i - j;
