@@ -1,9 +1,5 @@
 use std::collections::HashMap;
 use std::env;
-use std::fs::File;
-use std::io::{self, BufRead};
-use std::mem;
-use std::string::String;
 
 fn main() {
   let mut args = env::args();
@@ -37,5 +33,5 @@ fn main() {
     current = next;
   }
 
-  println!("the 2020th number is {}", current);
+  println!("the {} number is {}", n, current);
 }
