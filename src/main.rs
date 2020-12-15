@@ -23,12 +23,10 @@ fn main() {
   let n = 30000000;
 
   for i in state.len()..n - 1 {
-    let next;
-    if let Some(j) = state.get(&current) {
-      next = i - j;
-    } else {
-      next = 0;
-    }
+    let next = match state.get(&current) {
+      Some(j) => i-j,
+      None => 0,
+    };
     state.insert(current, i);
     current = next;
   }
