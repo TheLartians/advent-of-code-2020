@@ -75,10 +75,8 @@ fn remove_value(ri: Scalar, fi: Scalar, valid: &mut FieldMatrix) {
   if valid[ri][fi] {
     valid[ri][fi] = false;
     if let Some(idx) = find_rule_field_idx(&valid[ri]) {
-      for ri2 in 0..valid.len() {
-        if ri != ri2 {
-          remove_value(ri2, idx, valid);
-        }
+      for ri2 in (0..valid.len()).filter(|&i| i != ri) {
+        remove_value(ri2, idx, valid);
       }
     }
   }
@@ -114,10 +112,8 @@ fn main() {
     .filter(|t| ticket_has_no_illegal_value(&t, &rules))
   {
     for (fi, f) in ticket.iter().enumerate() {
-      for (ri, r) in rules.iter().enumerate() {
-        if !r.check(f) {
-          remove_value(ri, fi, &mut field_matrix);
-        }
+      for (ri, _) in rules.iter().enumerate().filter(|(_, r)| !r.check(f)) {
+        remove_value(ri, fi, &mut field_matrix);
       }
     }
   }
