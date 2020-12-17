@@ -1,15 +1,18 @@
 use itertools::Itertools;
-use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
+use std::iter::Iterator;
 
-type Scalar = u64;
+type Scalar = usize;
+type Ticket = Vec<Scalar>;
 
 #[derive(Debug)]
 struct Rule {
   ranges: Vec<(Scalar, Scalar)>,
 }
+
+type Rules = Vec<Rule>;
 
 impl Rule {
   fn check(&self, v: &Scalar) -> bool {
@@ -36,11 +39,49 @@ fn parse_rule(input: &str) -> (&str, Rule) {
   return (name, Rule { ranges: ranges });
 }
 
-fn parse_ticket(input: &str) -> Vec<Scalar> {
+fn parse_ticket(input: &str) -> Ticket {
   return input
     .split(',')
     .map(|v| v.parse::<Scalar>().unwrap())
     .collect();
+}
+
+fn ticket_has_no_illegal_value(ticket: &Ticket, rules: &Rules) -> bool {
+  ticket
+    .iter()
+    .map(|v| rules.iter().map(|r| r.check(v)).fold(false, |a, b| a || b))
+    .fold(true, |a, b| a && b)
+}
+
+type FieldMatrix = Vec<Vec<bool>>;
+
+fn find_rule_field_idx(fields: &Vec<bool>) -> Option<usize> {
+  if fields.iter().fold(0, |a, &b| a + (b as usize)) == 1 {
+    return Some(
+      fields
+        .iter()
+        .enumerate()
+        .filter(|(_, &v)| v)
+        .map(|(i, _)| i)
+        .next()
+        .unwrap(),
+    );
+  } else {
+    return None;
+  }
+}
+
+fn remove_value(ri: Scalar, fi: Scalar, valid: &mut FieldMatrix) {
+  if valid[ri][fi] {
+    valid[ri][fi] = false;
+    if let Some(idx) = find_rule_field_idx(&valid[ri]) {
+      for ri2 in 0..valid.len() {
+        if ri != ri2 {
+          remove_value(ri2, idx, valid);
+        }
+      }
+    }
+  }
 }
 
 fn main() {
@@ -51,32 +92,46 @@ fn main() {
     .lines()
     .filter_map(|s| s.ok());
 
-  let mut rules: HashMap<String, Rule> = HashMap::new();
+  let mut rules: Rules = Rules::new();
+  let mut rule_names: Vec<String> = Vec::new();
 
   while let Some(current) = input.next().filter(|s| s.len() > 0) {
     let (name, ranges) = parse_rule(&current);
-    rules.insert(String::from(name), ranges);
+    rules.push(ranges);
+    rule_names.push(String::from(name));
   }
 
   input.next();
-  let _own_ticket = parse_ticket(&input.next().unwrap());
+  let own_ticket = parse_ticket(&input.next().unwrap());
 
   input.next();
   input.next();
 
-  let result = input
+  let mut field_matrix: FieldMatrix = vec![vec![true; own_ticket.len()]; rules.len()];
+
+  for ticket in input
     .map(|s| parse_ticket(&s))
-    .map(|t| {
-      t.iter()
-        .filter(|v| {
-          rules
-            .values()
-            .map(|r| !r.check(v))
-            .fold(true, |a, b| a && b)
-        })
-        .fold(0, |a, b| a + b)
-    })
-    .fold(0, |a, b| a + b);
+    .filter(|t| ticket_has_no_illegal_value(&t, &rules))
+  {
+    for (fi, f) in ticket.iter().enumerate() {
+      for (ri, r) in rules.iter().enumerate() {
+        if !r.check(f) {
+          remove_value(ri, fi, &mut field_matrix);
+        }
+      }
+    }
+  }
+
+  let mut result = 1;
+  let search = "departure";
+  for (ri, _) in rule_names
+    .iter()
+    .enumerate()
+    .filter(|(_, s)| s.len() >= search.len() && &s[..search.len()] == search)
+  {
+    let idx = find_rule_field_idx(&field_matrix[ri]).unwrap();
+    result *= own_ticket[idx];
+  }
 
   println!("the result is {}", result);
 }
