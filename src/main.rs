@@ -119,11 +119,10 @@ fn main() {
   }
 
   let mut result = 1;
-  let search = "departure";
   for (ri, _) in rule_names
     .iter()
     .enumerate()
-    .filter(|(_, s)| s.len() >= search.len() && &s[..search.len()] == search)
+    .filter(|(_, s)| s.starts_with("departure"))
   {
     let idx = find_rule_field_idx(&field_matrix[ri]).unwrap();
     result *= own_ticket[idx];
