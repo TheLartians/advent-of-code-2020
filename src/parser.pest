@@ -1,8 +1,10 @@
 digit = { '0'..'9' }
 number = @{ digit+ }
 atom = { number | brackets }
-op = { "+" | "*" }
-binop = { atom ~ (op ~ atom)* }
+plus = { "+" }
+times = { "*" }
+addition = { atom ~ (plus ~ atom)* }
+multiplication = { addition ~ (times ~ addition)* }
 brackets = { "(" ~ expression ~ ")" }
-expression = { binop } 
+expression = { multiplication } 
 WHITESPACE = _{ " " }

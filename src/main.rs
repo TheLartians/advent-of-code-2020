@@ -1,8 +1,8 @@
+use pest::iterators::Pair;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::iter::Iterator;
-use pest::iterators::Pair;
 
 #[macro_use]
 extern crate pest_derive;
@@ -18,7 +18,7 @@ fn evaluate_expression(pair: Pair<Rule>) -> Scalar {
   match pair.as_rule() {
     Rule::number => pair.as_str().parse::<Scalar>().unwrap(),
     Rule::atom => evaluate_expression(pair.into_inner().next().unwrap()),
-    Rule::binop => {
+    Rule::addition | Rule::multiplication => {
       let mut inner_rules = pair.into_inner();
       let mut result = evaluate_expression(inner_rules.next().unwrap());
       while let Some(op) = inner_rules.next() {
@@ -28,9 +28,9 @@ fn evaluate_expression(pair: Pair<Rule>) -> Scalar {
           "*" => result *= rhs,
           _ => unreachable!(),
         }
-      } 
+      }
       return result;
-    },
+    }
     Rule::brackets => evaluate_expression(pair.into_inner().next().unwrap()),
     Rule::expression => evaluate_expression(pair.into_inner().next().unwrap()),
     _ => unreachable!(),
@@ -38,7 +38,14 @@ fn evaluate_expression(pair: Pair<Rule>) -> Scalar {
 }
 
 fn parse_expression(expr: &str) -> Scalar {
-  return evaluate_expression(NewMathParser::parse(Rule::expression, &expr).unwrap_or_else(|e| panic!("{}", e)).next().unwrap());
+  let result = evaluate_expression(
+    NewMathParser::parse(Rule::expression, &expr)
+      .unwrap_or_else(|e| panic!("{}", e))
+      .next()
+      .unwrap(),
+  );
+  println!("{} = {}", expr, result);
+  return result;
 }
 
 fn main() {
@@ -50,6 +57,6 @@ fn main() {
     .filter_map(|line| line.ok())
     .filter(|s| s.len() > 0);
 
-  let result = input.map(|s| parse_expression(&s)).fold(0, |a,b| a+b);
+  let result = input.map(|s| parse_expression(&s)).fold(0, |a, b| a + b);
   println!("the result is {}", result);
 }
