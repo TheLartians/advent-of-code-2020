@@ -7,7 +7,7 @@ use std::iter::Iterator;
 
 #[macro_use]
 extern crate generator;
-use generator::{Generator, Gn};
+use generator::{Generator, Gn, Scope};
 
 #[derive(Debug)]
 enum Rule {
@@ -32,24 +32,20 @@ fn parse_rule(input: &str) -> (usize, Rule) {
   return (id.parse().unwrap(), rule);
 }
 
-fn for_all_squence_matches<'a>(
+fn yield_all_sequence_matches<'a>(
+  s: &mut Scope<(), &'a str>,
   sequence: &'a Vec<usize>,
   rules: &'a HashMap<usize, Rule>,
   input: &'a str,
   current: usize,
-) -> Generator<'a, (), &'a str> {
-  return Gn::new_scoped(move |mut s| {
-    if sequence.len() > current {
-      for next in for_all_matches(&sequence[current], rules, input) {
-        for v in for_all_squence_matches(sequence, rules, next, current + 1) {
-          s.yield_(v);
-        }
-      }
-    } else {
-      s.yield_(input);
+) {
+  if sequence.len() > current {
+    for next in for_all_matches(&sequence[current], rules, input) {
+      yield_all_sequence_matches(s, sequence, rules, next, current + 1);
     }
-    done!();
-  });
+  } else {
+    s.yield_(input);
+  }
 }
 
 fn for_all_matches<'a>(
@@ -67,9 +63,7 @@ fn for_all_matches<'a>(
         }
         Rule::Choices { choices } => {
           for sequence in choices {
-            for m in for_all_squence_matches(sequence, rules, input, 0) {
-              s.yield_(m);
-            }
+            yield_all_sequence_matches(&mut s, sequence, rules, input, 0);
           }
         }
       }
