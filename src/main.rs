@@ -1,62 +1,92 @@
-use pest::iterators::Pair;
+use itertools::Itertools;
+use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::iter::Iterator;
 
-#[macro_use]
-extern crate pest_derive;
-use pest::Parser;
-
-#[derive(Parser)]
-#[grammar = "parser.pest"]
-struct NewMathParser;
-
-type Scalar = i64;
-
-fn evaluate_expression(pair: Pair<Rule>) -> Scalar {
-  match pair.as_rule() {
-    Rule::number => pair.as_str().parse::<Scalar>().unwrap(),
-    Rule::atom => evaluate_expression(pair.into_inner().next().unwrap()),
-    Rule::addition | Rule::multiplication => {
-      let mut inner_rules = pair.into_inner();
-      let mut result = evaluate_expression(inner_rules.next().unwrap());
-      while let Some(op) = inner_rules.next() {
-        let rhs = evaluate_expression(inner_rules.next().unwrap());
-        match op.as_str() {
-          "+" => result += rhs,
-          "*" => result *= rhs,
-          _ => unreachable!(),
-        }
-      }
-      return result;
-    }
-    Rule::brackets => evaluate_expression(pair.into_inner().next().unwrap()),
-    Rule::expression => evaluate_expression(pair.into_inner().next().unwrap()),
-    _ => unreachable!(),
-  }
+#[derive(Debug)]
+enum Rule {
+  Character { value: u8 },
+  Choices { choices: Vec<Vec<usize>> },
 }
 
-fn parse_expression(expr: &str) -> Scalar {
-  let result = evaluate_expression(
-    NewMathParser::parse(Rule::expression, &expr)
-      .unwrap_or_else(|e| panic!("{}", e))
-      .next()
-      .unwrap(),
-  );
-  println!("{} = {}", expr, result);
-  return result;
+fn parse_rule(input: &str) -> (usize, Rule) {
+  let (id, definition) = input.split(": ").next_tuple().unwrap();
+  let rule = if definition.as_bytes()[0] == b'"' {
+    Rule::Character {
+      value: definition.as_bytes()[1],
+    }
+  } else {
+    Rule::Choices {
+      choices: definition
+        .split(" | ")
+        .map(|s| s.split(" ").map(|s| s.parse().unwrap()).collect())
+        .collect(),
+    }
+  };
+  return (id.parse().unwrap(), rule);
+}
+
+fn matches_rule<'a>(id: &usize, rules: &HashMap<usize, Rule>, input: &'a str) -> Option<&'a str> {
+  if input.len() == 0 {
+    return None;
+  }
+  match rules.get(&id).unwrap() {
+    Rule::Character { value } => {
+      if input.as_bytes()[0] == *value {
+        return Some(&input[1..]);
+      } else {
+        return None;
+      }
+    }
+    Rule::Choices { choices } => {
+      for sequence in choices {
+        let mut current = input;
+        let mut valid = true;
+        for id2 in sequence {
+          match matches_rule(id2, rules, current) {
+            Some(v) => current = v,
+            None => {
+              valid = false;
+              break;
+            }
+          }
+        }
+        if valid {
+          return Some(current);
+        }
+      }
+      return None;
+    }
+  }
 }
 
 fn main() {
   let mut args = env::args();
   args.next();
   let filename = args.next().unwrap();
-  let input = io::BufReader::new(File::open(&filename).unwrap())
+  let mut input = io::BufReader::new(File::open(&filename).unwrap())
     .lines()
-    .filter_map(|line| line.ok())
-    .filter(|s| s.len() > 0);
+    .filter_map(|line| line.ok());
 
-  let result = input.map(|s| parse_expression(&s)).fold(0, |a, b| a + b);
-  println!("the result is {}", result);
+  let mut rules: HashMap<usize, Rule> = HashMap::new();
+
+  while let Some(line) = input.next().filter(|s| s.len() > 0) {
+    let (id, rule) = parse_rule(&line);
+    rules.insert(id, rule);
+  }
+
+  let result = input
+    .filter(|s| s.len() > 0)
+    .filter(|s| {
+      if let Some(v) = matches_rule(&0, &rules, &s) {
+        v.len() == 0
+      } else {
+        false
+      }
+    })
+    .count();
+
+  println!("result {}", result);
 }
