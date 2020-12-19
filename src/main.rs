@@ -5,6 +5,10 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::iter::Iterator;
 
+#[macro_use]
+extern crate generator;
+use generator::{Generator, Gn};
+
 #[derive(Debug)]
 enum Rule {
   Character { value: u8 },
@@ -28,38 +32,61 @@ fn parse_rule(input: &str) -> (usize, Rule) {
   return (id.parse().unwrap(), rule);
 }
 
-fn matches_rule<'a>(id: &usize, rules: &HashMap<usize, Rule>, input: &'a str) -> Option<&'a str> {
-  if input.len() == 0 {
-    return None;
-  }
-  match rules.get(&id).unwrap() {
-    Rule::Character { value } => {
-      if input.as_bytes()[0] == *value {
-        return Some(&input[1..]);
-      } else {
-        return None;
+fn for_all_squence_matches<'a>(
+  sequence: &'a Vec<usize>,
+  rules: &'a HashMap<usize, Rule>,
+  input: &'a str,
+  current: usize,
+) -> Generator<'a, (), &'a str> {
+  return Gn::new_scoped(move |mut s| {
+    if sequence.len() > current {
+      for next in for_all_matches(&sequence[current], rules, input) {
+        for v in for_all_squence_matches(sequence, rules, next, current + 1) {
+          s.yield_(v);
+        }
       }
+    } else {
+      s.yield_(input);
     }
-    Rule::Choices { choices } => {
-      for sequence in choices {
-        let mut current = input;
-        let mut valid = true;
-        for id2 in sequence {
-          match matches_rule(id2, rules, current) {
-            Some(v) => current = v,
-            None => {
-              valid = false;
-              break;
-            }
+    done!();
+  });
+}
+
+fn for_all_matches<'a>(
+  id: &'a usize,
+  rules: &'a HashMap<usize, Rule>,
+  input: &'a str,
+) -> Generator<'a, (), &'a str> {
+  return Gn::new_scoped(move |mut s| {
+    if input.len() == 0 {
+      done!();
+    }
+    match rules.get(&id).unwrap() {
+      Rule::Character { value } => {
+        if input.as_bytes()[0] == *value {
+          s.yield_(&input[1..]);
+        }
+        done!();
+      }
+      Rule::Choices { choices } => {
+        for sequence in choices {
+          for m in for_all_squence_matches(sequence, rules, input, 0) {
+            s.yield_(m);
           }
         }
-        if valid {
-          return Some(current);
-        }
+        done!();
       }
-      return None;
+    }
+  });
+}
+
+fn matches_rule<'a>(id: &usize, rules: &HashMap<usize, Rule>, input: &'a str) -> bool {
+  for v in for_all_matches(id, rules, input) {
+    if v.len() == 0 {
+      return true;
     }
   }
+  return false;
 }
 
 fn main() {
@@ -77,16 +104,13 @@ fn main() {
     rules.insert(id, rule);
   }
 
+  rules.insert(8, parse_rule("8: 42 | 42 8").1);
+  rules.insert(11, parse_rule("11: 42 31 | 42 11 31").1);
+
   let result = input
     .filter(|s| s.len() > 0)
-    .filter(|s| {
-      if let Some(v) = matches_rule(&0, &rules, &s) {
-        v.len() == 0
-      } else {
-        false
-      }
-    })
+    .filter(|s| matches_rule(&0, &rules, &s))
     .count();
 
-  println!("result {}", result);
+  println!("valid matches {}", result);
 }
