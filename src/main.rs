@@ -58,29 +58,27 @@ fn for_all_matches<'a>(
   input: &'a str,
 ) -> Generator<'a, (), &'a str> {
   return Gn::new_scoped(move |mut s| {
-    if input.len() == 0 {
-      done!();
-    }
-    match rules.get(&id).unwrap() {
-      Rule::Character { value } => {
-        if input.as_bytes()[0] == *value {
-          s.yield_(&input[1..]);
-        }
-        done!();
-      }
-      Rule::Choices { choices } => {
-        for sequence in choices {
-          for m in for_all_squence_matches(sequence, rules, input, 0) {
-            s.yield_(m);
+    if input.len() > 0 {
+      match rules.get(&id).unwrap() {
+        Rule::Character { value } => {
+          if input.as_bytes()[0] == *value {
+            s.yield_(&input[1..]);
           }
         }
-        done!();
+        Rule::Choices { choices } => {
+          for sequence in choices {
+            for m in for_all_squence_matches(sequence, rules, input, 0) {
+              s.yield_(m);
+            }
+          }
+        }
       }
     }
+    done!();
   });
 }
 
-fn matches_rule<'a>(id: &usize, rules: &HashMap<usize, Rule>, input: &'a str) -> bool {
+fn matches_rule(id: &usize, rules: &HashMap<usize, Rule>, input: &str) -> bool {
   for v in for_all_matches(id, rules, input) {
     if v.len() == 0 {
       return true;
