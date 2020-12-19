@@ -11,23 +11,21 @@ use generator::{Generator, Gn, Scope};
 
 #[derive(Debug)]
 enum Rule {
-  Character { value: u8 },
-  Choices { choices: Vec<Vec<usize>> },
+  Character(u8),
+  Choices(Vec<Vec<usize>>),
 }
 
 fn parse_rule(input: &str) -> (usize, Rule) {
   let (id, definition) = input.split(": ").next_tuple().unwrap();
   let rule = if definition.as_bytes()[0] == b'"' {
-    Rule::Character {
-      value: definition.as_bytes()[1],
-    }
+    Rule::Character(definition.as_bytes()[1])
   } else {
-    Rule::Choices {
-      choices: definition
+    Rule::Choices(
+      definition
         .split(" | ")
         .map(|s| s.split(" ").map(|s| s.parse().unwrap()).collect())
         .collect(),
-    }
+    )
   };
   return (id.parse().unwrap(), rule);
 }
@@ -56,12 +54,12 @@ fn for_all_matches<'a>(
   return Gn::new_scoped(move |mut s| {
     if input.len() > 0 {
       match rules.get(&id).unwrap() {
-        Rule::Character { value } => {
+        Rule::Character(value) => {
           if input.as_bytes()[0] == *value {
             s.yield_(&input[1..]);
           }
         }
-        Rule::Choices { choices } => {
+        Rule::Choices(choices) => {
           for sequence in choices {
             yield_all_sequence_matches(&mut s, sequence, rules, input, 0);
           }
