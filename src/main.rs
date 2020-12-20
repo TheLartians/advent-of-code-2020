@@ -1,106 +1,110 @@
-use itertools::Itertools;
-use std::collections::HashMap;
+use ndarray::prelude::s;
+use ndarray::{Array, Array2};
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::iter::Iterator;
 
-#[macro_use]
-extern crate generator;
-use generator::{Generator, Gn, Scope};
-
 #[derive(Debug)]
-enum Rule {
-  Character(u8),
-  Choices(Vec<Vec<usize>>),
+struct Tile {
+  id: usize,
+  data: Array2<bool>,
 }
 
-fn parse_rule(input: &str) -> (usize, Rule) {
-  let (id, definition) = input.split(": ").next_tuple().unwrap();
-  let rule = if definition.as_bytes()[0] == b'"' {
-    Rule::Character(definition.as_bytes()[1])
-  } else {
-    Rule::Choices(
-      definition
-        .split(" | ")
-        .map(|s| s.split(" ").map(|s| s.parse().unwrap()).collect())
-        .collect(),
-    )
-  };
-  return (id.parse().unwrap(), rule);
-}
-
-fn yield_all_sequence_matches<'a>(
-  s: &mut Scope<(), &'a str>,
-  sequence: &'a Vec<usize>,
-  rules: &'a HashMap<usize, Rule>,
-  input: &'a str,
-  current: usize,
-) {
-  if sequence.len() > current {
-    for next in for_all_matches(&sequence[current], rules, input) {
-      yield_all_sequence_matches(s, sequence, rules, next, current + 1);
-    }
-  } else {
-    s.yield_(input);
+fn parse_tile<I: Iterator<Item = String>>(lines: &mut I) -> Option<Tile> {
+  let first_line = lines.next().unwrap_or("".to_string());
+  if first_line.len() == 0 {
+    return None;
   }
-}
 
-fn for_all_matches<'a>(
-  id: &'a usize,
-  rules: &'a HashMap<usize, Rule>,
-  input: &'a str,
-) -> Generator<'a, (), &'a str> {
-  return Gn::new_scoped(move |mut s| {
-    if input.len() > 0 {
-      match rules.get(&id).unwrap() {
-        Rule::Character(value) => {
-          if input.as_bytes()[0] == *value {
-            s.yield_(&input[1..]);
-          }
-        }
-        Rule::Choices(choices) => {
-          for sequence in choices {
-            yield_all_sequence_matches(&mut s, sequence, rules, input, 0);
-          }
-        }
-      }
+  let id = first_line
+    .split(" ")
+    .skip(1)
+    .map(|s| s[..s.len() - 1].parse::<usize>().unwrap())
+    .next()
+    .unwrap();
+  let mut pixels: Vec<bool> = Vec::new();
+  let mut rows = 0;
+
+  while let Some(line) = lines.next() {
+    if line.len() == 0 {
+      break;
     }
-    done!();
-  });
+
+    pixels.extend(line.bytes().map(|b| if b == b'#' { true } else { false }));
+    rows += 1;
+  }
+
+  let columns = pixels.len() / rows;
+  let data: Array2<bool> = Array::from(pixels).into_shape([rows, columns]).unwrap();
+  return Some(Tile { id: id, data: data });
 }
 
-fn matches_rule(id: &usize, rules: &HashMap<usize, Rule>, input: &str) -> bool {
-  for v in for_all_matches(id, rules, input) {
-    if v.len() == 0 {
-      return true;
+fn parse_tiles<I: Iterator<Item = String>>(mut it: &mut I) -> Vec<Tile> {
+  let mut tiles = Vec::new();
+  while let Some(tile) = parse_tile(&mut it) {
+    tiles.push(tile);
+  }
+  return tiles;
+}
+
+fn get_edge_hash<'a, I: IntoIterator<Item = &'a bool>>(edge: I) -> u64 {
+  let mut result: u64 = 0;
+  for (i, v) in edge.into_iter().enumerate() {
+    if *v {
+      result |= 1 << i;
     }
   }
-  return false;
+  return result;
+}
+
+fn get_all_tile_edges<'a>(data: &'a Array2<bool>) -> Vec<u64> {
+  let normal_edges = [
+    data.slice(s![0, ..]),
+    data.slice(s![data.shape()[0] - 1, ..]),
+    data.slice(s![.., 0]),
+    data.slice(s![.., data.shape()[1] - 1]),
+  ];
+
+  return normal_edges
+    .iter()
+    .map(|e| vec![get_edge_hash(e), get_edge_hash(e.into_iter().rev())])
+    .flatten()
+    .collect::<Vec<u64>>();
 }
 
 fn main() {
   let mut args = env::args();
   args.next();
   let filename = args.next().unwrap();
-  let mut input = io::BufReader::new(File::open(&filename).unwrap())
-    .lines()
-    .filter_map(|line| line.ok());
 
-  let mut rules: HashMap<usize, Rule> = HashMap::new();
+  let tiles = parse_tiles(
+    &mut io::BufReader::new(File::open(&filename).unwrap())
+      .lines()
+      .filter_map(|line| line.ok()),
+  );
 
-  while let Some(line) = input.next().filter(|s| s.len() > 0) {
-    let (id, rule) = parse_rule(&line);
-    rules.insert(id, rule);
+  let mut edge_hashes: HashMap<u64, usize> = HashMap::new();
+  let mut adjacent_tiles: Vec<HashSet<usize>> = vec![HashSet::new(); tiles.len()];
+
+  for (idx, tile) in tiles.iter().enumerate() {
+    for edge_hash in get_all_tile_edges(&tile.data) {
+      if let Some(partner) = edge_hashes.get_mut(&edge_hash) {
+        adjacent_tiles[idx].insert(*partner);
+        adjacent_tiles[*partner].insert(idx);
+      } else {
+        edge_hashes.insert(edge_hash, idx);
+      }
+    }
   }
 
-  rules.insert(8, parse_rule("8: 42 | 42 8").1);
-  rules.insert(11, parse_rule("11: 42 31 | 42 11 31").1);
+  let mut result = 1;
+  for (idx, adjacent) in adjacent_tiles.iter().enumerate() {
+    if adjacent.len() == 2 {
+      result *= tiles[idx].id;
+    }
+  }
 
-  let result = input
-    .filter(|s| s.len() > 0)
-    .filter(|s| matches_rule(&0, &rules, &s))
-    .count();
-
-  println!("valid matches {}", result);
+  println!("result: {}", result);
 }
