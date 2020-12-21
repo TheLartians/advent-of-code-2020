@@ -343,10 +343,9 @@ fn main() {
       break;
     }
 
+    result_tile.rotate_90();
     if i % 4 == 0 {
       result_tile.flip();
-    } else {
-      result_tile.rotate_90();
     }
   }
 }
