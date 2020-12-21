@@ -249,21 +249,6 @@ fn main() {
     })
     .collect();
 
-  let part1_res = adjacent_tiles
-    .iter()
-    .enumerate()
-    .filter(|(_, v)| v.len() == 2)
-    .map(|(i, _)| tiles[i].id)
-    .fold(1, |a, b| a * b);
-  assert_eq!(
-    part1_res,
-    if filename == "example.txt" {
-      20899048083289
-    } else {
-      13224049461431
-    }
-  );
-
   oriented_tiles[0].position = Some((0, 0));
   assemble_puzzle(0, &mut oriented_tiles);
 
