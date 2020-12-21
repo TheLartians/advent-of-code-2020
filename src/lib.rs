@@ -1,3 +1,4 @@
+use itertools::iproduct;
 use ndarray::prelude::s;
 use ndarray::{Array, Array2, ArrayView2, Axis};
 use num_derive::FromPrimitive;
@@ -172,14 +173,14 @@ fn assemble_puzzle(tile_idx: usize, tiles: &mut Vec<OrientedTile>) {
         continue;
       };
 
-      while edge.edges.get(&tile_idx).unwrap().flipped == tile_side.flipped {
+      if edge.edges.get(&tile_idx).unwrap().flipped == tile_side.flipped {
         edge.flip();
-        edge.rotate_90();
       }
 
       while tile_side.side as isize != (edge.edges.get(&tile_idx).unwrap().side as isize + 2) % 4 {
         edge.rotate_90();
       }
+
       edge.position = match tile_side.side {
         Side::TOP => Some((tile_position.0, tile_position.1 - 1)),
         Side::RIGHT => Some((tile_position.0 + 1, tile_position.1)),
@@ -195,24 +196,18 @@ fn for_all_shapes<F: FnMut(usize, usize) -> ()>(
   kernel: &ArrayView2<bool>,
   data: &ArrayView2<bool>,
   mut callback: F,
-) -> usize {
-  let mut result = 0;
-  for i in 0..data.shape()[0] - kernel.shape()[0] {
-    for j in 0..data.shape()[1] - kernel.shape()[1] {
-      let mut valid = true;
-      for ((k, l), _) in kernel.indexed_iter() {
-        if *kernel.get([k, l]).unwrap() && !*data.get([i + k, j + l]).unwrap() {
-          valid = false;
-          break;
-        }
-      }
-      if valid {
-        callback(i, j);
-        result += 1;
-      }
+) {
+  for (i, j) in iproduct!(
+    0..data.shape()[0] - kernel.shape()[0],
+    0..data.shape()[1] - kernel.shape()[1]
+  ) {
+    if !kernel
+      .indexed_iter()
+      .any(|((k, l), v)| *v && !*data.get([i + k, j + l]).unwrap())
+    {
+      callback(i, j);
     }
   }
-  return result;
 }
 
 fn count_shapes(kernel: &ArrayView2<bool>, data: &ArrayView2<bool>) -> usize {
