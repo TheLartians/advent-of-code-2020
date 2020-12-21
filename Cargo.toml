@@ -1,5 +1,5 @@
 [package]
-name = "rust-playground"
+name = "rust_playground"
 version = "0.1.0"
 authors = ["Lars Melchior <TheLartians@users.noreply.github.com>"]
 edition = "2018"
@@ -12,3 +12,10 @@ ndarray = "0.14.0"
 num-derive = "0.3.3"
 num-traits = "0.2.14"
 num = "0.3.1"
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "bench"
+harness = false
