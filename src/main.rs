@@ -1,106 +1,82 @@
 use itertools::Itertools;
-use std::collections::HashMap;
+use lazy_static::lazy_static;
+use regex::Regex;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::iter::Iterator;
 
-#[macro_use]
-extern crate generator;
-use generator::{Generator, Gn, Scope};
-
-#[derive(Debug)]
-enum Rule {
-  Character(u8),
-  Choices(Vec<Vec<usize>>),
-}
-
-fn parse_rule(input: &str) -> (usize, Rule) {
-  let (id, definition) = input.split(": ").next_tuple().unwrap();
-  let rule = if definition.as_bytes()[0] == b'"' {
-    Rule::Character(definition.as_bytes()[1])
-  } else {
-    Rule::Choices(
-      definition
-        .split(" | ")
-        .map(|s| s.split(" ").map(|s| s.parse().unwrap()).collect())
-        .collect(),
-    )
-  };
-  return (id.parse().unwrap(), rule);
-}
-
-fn yield_all_sequence_matches<'a>(
-  s: &mut Scope<(), &'a str>,
-  sequence: &'a Vec<usize>,
-  rules: &'a HashMap<usize, Rule>,
-  input: &'a str,
-  current: usize,
-) {
-  if sequence.len() > current {
-    for next in for_all_matches(&sequence[current], rules, input) {
-      yield_all_sequence_matches(s, sequence, rules, next, current + 1);
-    }
-  } else {
-    s.yield_(input);
+fn parse_ingredients(input: &str) -> (Vec<String>, Vec<String>) {
+  lazy_static! {
+    static ref RE: Regex = Regex::new(r"^(.*) \(contains (.*)\)$").unwrap();
   }
-}
-
-fn for_all_matches<'a>(
-  id: &'a usize,
-  rules: &'a HashMap<usize, Rule>,
-  input: &'a str,
-) -> Generator<'a, (), &'a str> {
-  return Gn::new_scoped(move |mut s| {
-    if input.len() > 0 {
-      match rules.get(&id).unwrap() {
-        Rule::Character(value) => {
-          if input.as_bytes()[0] == *value {
-            s.yield_(&input[1..]);
-          }
-        }
-        Rule::Choices(choices) => {
-          for sequence in choices {
-            yield_all_sequence_matches(&mut s, sequence, rules, input, 0);
-          }
-        }
-      }
-    }
-    done!();
-  });
-}
-
-fn matches_rule(id: &usize, rules: &HashMap<usize, Rule>, input: &str) -> bool {
-  for v in for_all_matches(id, rules, input) {
-    if v.len() == 0 {
-      return true;
-    }
-  }
-  return false;
+  let capture = RE.captures(input).unwrap();
+  let ingredients = capture[1]
+    .split(" ")
+    .map(|s| String::from(s))
+    .collect::<Vec<_>>();
+  let allergens = capture[2]
+    .split(", ")
+    .map(|s| String::from(s))
+    .collect::<Vec<_>>();
+  return (ingredients, allergens);
 }
 
 fn main() {
   let mut args = env::args();
   args.next();
   let filename = args.next().unwrap();
-  let mut input = io::BufReader::new(File::open(&filename).unwrap())
+  let input = io::BufReader::new(File::open(&filename).unwrap())
     .lines()
-    .filter_map(|line| line.ok());
+    .filter_map(|line| line.ok())
+    .map(|s| parse_ingredients(&s))
+    .collect::<Vec<_>>();
 
-  let mut rules: HashMap<usize, Rule> = HashMap::new();
+  let mut allergen_sets: HashMap<&str, HashSet<&str>> = HashMap::new();
 
-  while let Some(line) = input.next().filter(|s| s.len() > 0) {
-    let (id, rule) = parse_rule(&line);
-    rules.insert(id, rule);
+  for product in &input {
+    let ingredients_set = product
+      .0
+      .iter()
+      .map(|s| s.as_str())
+      .collect::<HashSet<&str>>();
+
+    for allergen in &product.1 {
+      let allergen_ingredients = allergen_sets
+        .entry(&allergen)
+        .or_insert_with(|| ingredients_set.clone());
+
+      let intersection = allergen_ingredients
+        .intersection(&ingredients_set)
+        .map(|&s| s)
+        .collect::<HashSet<&str>>();
+
+      allergen_sets.insert(&allergen, intersection);
+    }
   }
 
-  rules.insert(8, parse_rule("8: 42 | 42 8").1);
-  rules.insert(11, parse_rule("11: 42 31 | 42 11 31").1);
+  let mut ingredients_set: HashSet<&str> = input
+    .iter()
+    .map(|(ingredients, _)| ingredients)
+    .flatten()
+    .map(|s| s.as_str())
+    .collect();
 
-  let result = input
-    .filter(|s| s.len() > 0)
-    .filter(|s| matches_rule(&0, &rules, &s))
-    .count();
+  for (_, ingredients) in &allergen_sets {
+    for ingredient in ingredients {
+      ingredients_set.remove(ingredient);
+    }
+  }
 
-  println!("valid matches {}", result);
+  let mut result = 0;
+  for product in &input {
+    for ingredient in &product.0 {
+      if ingredients_set.contains(ingredient.as_str()) {
+        result += 1;
+      }
+    }
+  }
+
+  println!("the result is {}", result);
 }
