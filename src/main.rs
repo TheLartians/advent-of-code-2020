@@ -56,27 +56,29 @@ fn main() {
     }
   }
 
-  let mut ingredients_set: HashSet<&str> = input
-    .iter()
-    .map(|(ingredients, _)| ingredients)
-    .flatten()
-    .map(|s| s.as_str())
-    .collect();
+  let mut allergen_ingredients = HashMap::new();
 
-  for (_, ingredients) in &allergen_sets {
-    for ingredient in ingredients {
-      ingredients_set.remove(ingredient);
-    }
-  }
-
-  let mut result = 0;
-  for product in &input {
-    for ingredient in &product.0 {
-      if ingredients_set.contains(ingredient.as_str()) {
-        result += 1;
+  while allergen_sets.len() > 0 {
+    let to_remove = allergen_sets
+      .iter()
+      .filter(|(_, i)| i.len() == 1)
+      .map(|(&a, i)| (a, *i.iter().next().unwrap()))
+      .collect::<Vec<_>>();
+    for (allergen, ingredient) in to_remove {
+      allergen_sets.remove(allergen);
+      allergen_ingredients.insert(allergen, ingredient);
+      for (_, ingredients) in &mut allergen_sets {
+        ingredients.remove(ingredient);
       }
     }
   }
 
-  println!("the result is {}", result);
+  println!(
+    "allergen_ingredients: {:?}",
+    allergen_ingredients
+      .iter()
+      .sorted()
+      .map(|(_, i)| i)
+      .join(",")
+  );
 }
