@@ -15,11 +15,7 @@ fn parse_cards(input: &str) -> VecDeque<Scalar> {
     .collect();
 }
 
-fn recursive_combat(
-  deck1: &mut VecDeque<Scalar>,
-  deck2: &mut VecDeque<Scalar>,
-  game: usize,
-) -> bool {
+fn recursive_combat(deck1: &mut VecDeque<Scalar>, deck2: &mut VecDeque<Scalar>) -> bool {
   let mut cache: HashSet<(Vec<Scalar>, Vec<Scalar>)> = HashSet::new();
 
   while ![&deck1, &deck2].iter().any(|d| d.len() == 0) {
@@ -38,7 +34,6 @@ fn recursive_combat(
         recursive_combat(
           &mut deck1.iter().take(p1).map(|&v| v).collect(),
           &mut deck2.iter().take(p2).map(|&v| v).collect(),
-          game + 1,
         )
       } else {
         p1 > p2
@@ -68,7 +63,7 @@ fn main() {
     .next_tuple()
     .unwrap();
 
-  recursive_combat(&mut deck1, &mut deck2, 0);
+  recursive_combat(&mut deck1, &mut deck2);
 
   println!(
     "the final score result is {}",
