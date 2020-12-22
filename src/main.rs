@@ -1,84 +1,50 @@
 use itertools::Itertools;
-use lazy_static::lazy_static;
-use regex::Regex;
-use std::collections::{HashMap, HashSet};
+use std::collections::VecDeque;
 use std::env;
-use std::fs::File;
-use std::io::{self, BufRead};
+use std::fs;
 use std::iter::Iterator;
 
-fn parse_ingredients(input: &str) -> (Vec<String>, Vec<String>) {
-  lazy_static! {
-    static ref RE: Regex = Regex::new(r"^(.*) \(contains (.*)\)$").unwrap();
-  }
-  let capture = RE.captures(input).unwrap();
-  let ingredients = capture[1]
-    .split(" ")
-    .map(|s| String::from(s))
-    .collect::<Vec<_>>();
-  let allergens = capture[2]
-    .split(", ")
-    .map(|s| String::from(s))
-    .collect::<Vec<_>>();
-  return (ingredients, allergens);
+fn parse_cards(input: &str) -> VecDeque<i64> {
+  return input
+    .split('\n')
+    .skip(1)
+    .filter(|s| s.len() > 0)
+    .map(|s| s.parse().unwrap())
+    .collect();
 }
 
 fn main() {
   let mut args = env::args();
   args.next();
   let filename = args.next().unwrap();
-  let input = io::BufReader::new(File::open(&filename).unwrap())
-    .lines()
-    .filter_map(|line| line.ok())
-    .map(|s| parse_ingredients(&s))
-    .collect::<Vec<_>>();
+  let (mut deck1, mut deck2) = fs::read_to_string(&filename)
+    .unwrap()
+    .split("\n\n")
+    .map(|s| parse_cards(&s))
+    .next_tuple()
+    .unwrap();
 
-  let mut allergen_sets: HashMap<&str, HashSet<&str>> = HashMap::new();
-
-  for product in &input {
-    let ingredients_set = product
-      .0
-      .iter()
-      .map(|s| s.as_str())
-      .collect::<HashSet<&str>>();
-
-    for allergen in &product.1 {
-      let allergen_ingredients = allergen_sets
-        .entry(&allergen)
-        .or_insert_with(|| ingredients_set.clone());
-
-      let intersection = allergen_ingredients
-        .intersection(&ingredients_set)
-        .map(|&s| s)
-        .collect::<HashSet<&str>>();
-
-      allergen_sets.insert(&allergen, intersection);
-    }
-  }
-
-  let mut allergen_ingredients = HashMap::new();
-
-  while allergen_sets.len() > 0 {
-    let to_remove = allergen_sets
-      .iter()
-      .filter(|(_, i)| i.len() == 1)
-      .map(|(&a, i)| (a, *i.iter().next().unwrap()))
-      .collect::<Vec<_>>();
-    for (allergen, ingredient) in to_remove {
-      allergen_sets.remove(allergen);
-      allergen_ingredients.insert(allergen, ingredient);
-      for (_, ingredients) in &mut allergen_sets {
-        ingredients.remove(ingredient);
-      }
+  while ![&deck1, &deck2].iter().any(|d| d.len() == 0) {
+    let p1 = deck1.pop_front().unwrap();
+    let p2 = deck2.pop_front().unwrap();
+    if p1 > p2 {
+      deck1.push_back(p1);
+      deck1.push_back(p2);
+    } else {
+      deck2.push_back(p2);
+      deck2.push_back(p1);
     }
   }
 
   println!(
-    "allergen_ingredients: {:?}",
-    allergen_ingredients
+    "the final score result is {}",
+    [&deck1, &deck2]
       .iter()
-      .sorted()
-      .map(|(_, i)| i)
-      .join(",")
+      .map(|&v| v)
+      .flatten()
+      .rev()
+      .enumerate()
+      .map(|(i, &v)| (i as i64 + 1) * v)
+      .fold(0, |a, b| a + b)
   );
 }
