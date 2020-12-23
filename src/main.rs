@@ -1,4 +1,3 @@
-use arrayvec::ArrayVec;
 use std::env;
 use std::iter::Iterator;
 
@@ -38,6 +37,7 @@ fn main() {
   let cup_count = 1000000;
   let rounds = 10000000;
   let mut cups = Vec::new();
+  const pick_len: usize = 3;
 
   for i in 0..cup_count {
     cups.push(i + 1);
@@ -56,15 +56,18 @@ fn main() {
 
   let mut current = input[0];
   for _round in 0..rounds {
-    let pick: ArrayVec<[_; 3]> = cup_traverse(&cups, current).collect();
     let mut destination = (current + cup_count - 1) % cup_count;
-    while pick.iter().any(|&v| v == destination) {
+    while cup_traverse(&cups, current)
+      .take(pick_len)
+      .any(|v| v == destination)
+    {
       destination = (destination + cup_count - 1) % cup_count;
     }
-    let after_pick = cups[*pick.last().unwrap()];
+    let final_pick = cup_traverse(&cups, current).take(pick_len).last().unwrap();
+    let after_pick = cups[final_pick];
     let after_dest = cups[destination];
-    cups[destination] = pick[0];
-    cups[*pick.last().unwrap()] = after_dest;
+    cups[destination] = cups[current];
+    cups[final_pick] = after_dest;
     cups[current] = after_pick;
     current = cups[current];
   }
