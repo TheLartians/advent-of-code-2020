@@ -61,10 +61,10 @@ fn main() {
     while pick.iter().any(|&v| v == destination) {
       destination = (destination + cup_count - 1) % cup_count;
     }
-    let after_pick = cups[pick[2]];
+    let after_pick = cups[*pick.last().unwrap()];
     let after_dest = cups[destination];
     cups[destination] = pick[0];
-    cups[pick[2]] = after_dest;
+    cups[*pick.last().unwrap()] = after_dest;
     cups[current] = after_pick;
     current = cups[current];
   }
