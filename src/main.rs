@@ -1,53 +1,78 @@
-use itertools::Itertools;
-use std::collections::{HashSet, VecDeque};
 use std::env;
-use std::fs;
 use std::iter::Iterator;
 
-type Scalar = u8;
+type Cup = usize;
+type Cups = Vec<Cup>;
+
+struct CupTraverse<'a> {
+  curr: usize,
+  cups: &'a Cups,
+}
+
+fn cup_traverse<'a>(cups: &'a Cups, current_value: usize) -> CupTraverse<'a> {
+  return CupTraverse {
+    curr: current_value,
+    cups: cups,
+  };
+}
+
+impl Iterator for CupTraverse<'_> {
+  type Item = usize;
+  fn next(&mut self) -> Option<Self::Item> {
+    self.curr = self.cups[self.curr];
+    return Some(self.curr);
+  }
+}
 
 fn main() {
   let mut args = env::args();
   args.next();
-  let mut cups = args
+  let input = args
     .next()
     .unwrap()
     .bytes()
-    .map(|v| v - b'0')
-    .collect::<VecDeque<Scalar>>();
+    .map(|v| (v - b'0' - 1) as Cup)
+    .collect::<Vec<_>>();
 
-  for i in 0..100 {
-    let current = cups.pop_front().unwrap();
-    let next = cups.drain(0..3).collect::<Vec<_>>();
-    cups.push_back(current);
-    let destination = cups
-      .iter()
-      .map(|&v| {
-        if v < current {
-          current - v
-        } else {
-          current + 9 - v
-        }
-      })
-      .enumerate()
-      .sorted_by(|(_, a), (_, b)| Ord::cmp(a, b))
-      .map(|(i, _)| i)
-      .next()
-      .unwrap()
-      + 1;
-    next.iter().rev().for_each(|&v| cups.insert(destination, v));
-    println!("after round {}: {:?}", i+1, cups);
+  let cup_count = 1000000;
+  let rounds = 10000000;
+  let mut cups = Vec::new();
+
+  for i in 0..cup_count {
+    cups.push(i + 1);
   }
 
-  cups.rotate_left(
-    cups
-      .iter()
-      .enumerate()
-      .filter(|(_, &v)| v == 1)
-      .map(|(i, _)| i)
-      .next()
-      .unwrap(),
-  );
+  let mut current = cups.len() - 1;
+  for &v in input.iter() {
+    cups[current] = v;
+    current = v;
+  }
+  if input.len() < cup_count {
+    cups[current] = input.len() % cup_count;
+  } else {
+    cups[current] = input[0];
+  }
 
-  println!("result: {:?}", String::from_utf8(cups.iter().skip(1).map(|&v| b'0' + v).collect::<Vec<_>>()).unwrap());
+  let mut current = input[0];
+  for _round in 0..rounds {
+    let pick = cup_traverse(&cups, current).take(3).collect::<Vec<_>>();
+    let mut destination = (current + cup_count - 1) % cup_count;
+    while let Some(_) = pick.iter().position(|&v| v == destination) {
+      destination = (destination + cup_count - 1) % cup_count;
+    }
+    let after_pick = cups[pick[2]];
+    let after_dest = cups[destination];
+    cups[destination] = pick[0];
+    cups[pick[2]] = after_dest;
+    cups[current] = after_pick;
+    current = cups[current];
+  }
+
+  println!(
+    "the result is {}",
+    cup_traverse(&cups, 0)
+      .take(2)
+      .map(|c| c + 1)
+      .fold(1, |a, b| a * b)
+  );
 }
