@@ -1,3 +1,4 @@
+use arrayvec::ArrayVec;
 use std::env;
 use std::iter::Iterator;
 
@@ -55,7 +56,9 @@ fn main() {
 
   let mut current = input[0];
   for _round in 0..rounds {
-    let pick = cup_traverse(&cups, current).take(3).collect::<Vec<_>>();
+    let pick = cup_traverse(&cups, current)
+      .take(3)
+      .collect::<ArrayVec<[_; 3]>>();
     let mut destination = (current + cup_count - 1) % cup_count;
     while pick.iter().any(|&v| v == destination) {
       destination = (destination + cup_count - 1) % cup_count;
