@@ -47,11 +47,11 @@ fn main() {
     cups[current] = v;
     current = v;
   }
-  if input.len() < cup_count {
-    cups[current] = input.len() % cup_count;
+  cups[current] = if input.len() < cup_count {
+    input.len() % cup_count
   } else {
-    cups[current] = input[0];
-  }
+    input[0]
+  };
 
   let mut current = input[0];
   for _round in 0..rounds {
