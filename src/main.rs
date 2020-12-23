@@ -57,7 +57,7 @@ fn main() {
   for _round in 0..rounds {
     let pick = cup_traverse(&cups, current).take(3).collect::<Vec<_>>();
     let mut destination = (current + cup_count - 1) % cup_count;
-    while let Some(_) = pick.iter().position(|&v| v == destination) {
+    while pick.iter().any(|&v| v == destination) {
       destination = (destination + cup_count - 1) % cup_count;
     }
     let after_pick = cups[pick[2]];
