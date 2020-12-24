@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -6,6 +6,7 @@ use std::iter::Iterator;
 
 type Scalar = i32;
 type Direction = (Scalar, Scalar);
+type Location = Direction;
 
 fn parse_direction<I: Iterator<Item = u8>>(input: &mut I) -> Option<Direction> {
   let c = input.next()?;
@@ -50,10 +51,27 @@ fn get_tile_position(instruction: &Vec<Direction>) -> (Scalar, Scalar) {
   return result;
 }
 
+fn get_neighbors(tiles: &HashSet<Location>) -> HashMap<Location, usize> {
+  let mut neighbors = HashMap::new();
+  let directions = [(2, 0), (-2, 0), (1, 1), (-1, -1), (-1, 1), (1, -1)];
+  for tile in tiles {
+    for (x, y) in directions.iter() {
+      let loc = (x + tile.0, y + tile.1);
+      let current = *neighbors.get(&loc).unwrap_or(&0);
+      neighbors.insert(loc, current + 1);
+    }
+    if !neighbors.contains_key(tile) {
+      neighbors.insert(*tile, 0);
+    }
+  }
+  return neighbors;
+}
+
 fn main() {
   let mut args = env::args();
   args.next();
   let filename = args.next().unwrap();
+  let iterations: usize = args.next().unwrap().parse().unwrap();
 
   let file = File::open(filename).unwrap();
   let mut bytes = file.bytes().filter_map(|b| b.ok());
@@ -69,5 +87,21 @@ fn main() {
     }
   }
 
-  println!("flipped tiles {:?}", flipped.len());
+  println!("initially flipped tiles {:?}", flipped.len());
+
+  for _day in 0..iterations {
+    for (p, n) in get_neighbors(&flipped) {
+      let is_black = flipped.contains(&p);
+      match (is_black, n) {
+        (true, c) if (c == 0 || c > 2) => {
+          flipped.remove(&p);
+        }
+        (false, 2) => {
+          flipped.insert(p);
+        }
+        _ => {}
+      }
+    }
+    println!("day {}: {}", _day + 1, flipped.len());
+  }
 }
