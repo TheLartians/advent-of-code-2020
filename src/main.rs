@@ -1,82 +1,73 @@
+use std::collections::HashSet;
 use std::env;
+use std::fs::File;
+use std::io::prelude::*;
 use std::iter::Iterator;
 
-type Cup = usize;
-type Cups = Vec<Cup>;
+type Scalar = i32;
+type Direction = (Scalar, Scalar);
 
-struct CupTraverse<'a> {
-  curr: usize,
-  cups: &'a Cups,
-}
-
-fn cup_traverse<'a>(cups: &'a Cups, current_value: usize) -> CupTraverse<'a> {
-  return CupTraverse {
-    curr: current_value,
-    cups: cups,
+fn parse_direction<I: Iterator<Item = u8>>(input: &mut I) -> Option<Direction> {
+  let c = input.next()?;
+  return match c {
+    b'e' => Some((2, 0)),
+    b'w' => Some((-2, 0)),
+    b's' => Some((
+      match input.next().unwrap() {
+        b'w' => -1,
+        b'e' => 1,
+        _ => unreachable!(),
+      },
+      -1,
+    )),
+    b'n' => Some((
+      match input.next().unwrap() {
+        b'w' => -1,
+        b'e' => 1,
+        _ => unreachable!(),
+      },
+      1,
+    )),
+    b'\n' => None,
+    _ => unreachable!(),
   };
 }
 
-impl Iterator for CupTraverse<'_> {
-  type Item = usize;
-  fn next(&mut self) -> Option<Self::Item> {
-    self.curr = self.cups[self.curr];
-    return Some(self.curr);
+fn parse_instruction<I: Iterator<Item = u8>>(mut input: &mut I) -> Option<Vec<Direction>> {
+  let mut result = Vec::new();
+  while let Some(d) = parse_direction(&mut input) {
+    result.push(d);
   }
+  return if result.len() > 0 { Some(result) } else { None };
+}
+
+fn get_tile_position(instruction: &Vec<Direction>) -> (Scalar, Scalar) {
+  let mut result = (0, 0);
+  for i in instruction {
+    result.0 += i.0;
+    result.1 += i.1;
+  }
+  return result;
 }
 
 fn main() {
   let mut args = env::args();
   args.next();
-  let input = args
-    .next()
-    .unwrap()
-    .bytes()
-    .map(|v| (v - b'0' - 1) as Cup)
-    .collect::<Vec<_>>();
+  let filename = args.next().unwrap();
 
-  let cup_count = 1000000;
-  let rounds = 10000000;
-  let mut cups = Vec::new();
-  const pick_len: usize = 3;
+  let file = File::open(filename).unwrap();
+  let mut bytes = file.bytes().filter_map(|b| b.ok());
 
-  for i in 0..cup_count {
-    cups.push(i + 1);
-  }
+  let mut flipped = HashSet::new();
 
-  let mut current = cups.len() - 1;
-  for &v in input.iter() {
-    cups[current] = v;
-    current = v;
-  }
-  cups[current] = if input.len() < cup_count {
-    input.len() % cup_count
-  } else {
-    input[0]
-  };
-
-  let mut current = input[0];
-  for _round in 0..rounds {
-    let mut destination = (current + cup_count - 1) % cup_count;
-    while cup_traverse(&cups, current)
-      .take(pick_len)
-      .any(|v| v == destination)
-    {
-      destination = (destination + cup_count - 1) % cup_count;
+  while let Some(instruction) = parse_instruction(&mut bytes) {
+    let tile_position = get_tile_position(&instruction);
+    if flipped.contains(&tile_position) {
+      flipped.remove(&tile_position);
+    } else {
+      flipped.insert(tile_position);
     }
-    let final_pick = cup_traverse(&cups, current).take(pick_len).last().unwrap();
-    let after_pick = cups[final_pick];
-    let after_dest = cups[destination];
-    cups[destination] = cups[current];
-    cups[final_pick] = after_dest;
-    cups[current] = after_pick;
-    current = cups[current];
   }
 
-  println!(
-    "the result is {}",
-    cup_traverse(&cups, 0)
-      .take(2)
-      .map(|c| c + 1)
-      .fold(1, |a, b| a * b)
-  );
+  println!("flipped tiles {:?}", flipped.len());
 }
