@@ -34,7 +34,7 @@ fn main() {
   let public_keys: Vec<Scalar> = input
     .split('\n')
     .filter(|s| s.len() > 0)
-    .map(|s| s.parse::<Scalar>().unwrap())
+    .map(|s| s.parse().unwrap())
     .collect();
 
   let loop_sizes: Vec<_> = public_keys
