@@ -1,29 +1,37 @@
-use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs::read_to_string;
-use std::io::prelude::*;
 use std::iter::Iterator;
 
 type Scalar = u64;
 
-fn transform(subject_number: Scalar, loop_size: usize) -> Scalar {
-  let mut current = 1;
-  for _ in 0..loop_size {
-    current = (current * subject_number) % 20201227;
-  }
-  return current;
+struct Transformer {
+  current: Scalar,
+  subject_number: Scalar,
 }
 
-fn find_loop_size(public_key: Scalar) -> Option<usize> {
-  let subject_number = 7;
-  let mut current = 1;
-  for i in 0..10000000000 {
-    current = (current * subject_number) % 20201227;
-    if current == public_key {
-      return Some(i + 1);
+impl Iterator for Transformer {
+  type Item = Scalar;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    self.current = (self.current * self.subject_number) % 20201227;
+    return Some(self.current);
+  }
+}
+
+fn transform(subject_number: Scalar) -> Transformer {
+  return Transformer {
+    current: 1,
+    subject_number: subject_number,
+  };
+}
+
+fn find_loop_size(public_key: Scalar) -> usize {
+  for (i, key) in transform(7).enumerate() {
+    if key == public_key {
+      return i;
     }
   }
-  return None;
+  unreachable!();
 }
 
 fn main() {
@@ -37,17 +45,19 @@ fn main() {
     .filter(|s| s.len() > 0)
     .map(|s| s.parse::<Scalar>().unwrap())
     .collect::<Vec<Scalar>>();
+
   let loop_sizes = public_keys
     .iter()
-    .map(|&v| find_loop_size(v).unwrap())
+    .map(|&v| find_loop_size(v))
     .collect::<Vec<_>>();
-  println!("loop sizes: {:?}", loop_sizes);
 
-  let encryption_keys = loop_sizes
+  let encryption_keys = public_keys
     .iter()
-    .zip(public_keys.iter().rev())
-    .map(|(&i, &k)| transform(k, i))
+    .rev()
+    .zip(loop_sizes.iter())
+    .map(|(&k, &i)| transform(k).skip(i).next().unwrap())
     .collect::<Vec<_>>();
 
-  println!("encryption keys: {:?}", encryption_keys);
+  assert_eq!(encryption_keys[0], encryption_keys[1]);
+  println!("the encryption key is {}", encryption_keys[0]);
 }
