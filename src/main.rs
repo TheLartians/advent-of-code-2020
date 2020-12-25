@@ -25,38 +25,36 @@ fn transform(subject_number: Scalar) -> Transformer {
   };
 }
 
-fn find_loop_size(public_key: Scalar) -> usize {
-  for (i, key) in transform(7).enumerate() {
-    if key == public_key {
-      return i;
-    }
-  }
-  unreachable!();
-}
-
 fn main() {
   let mut args = env::args();
   args.next();
   let filename = args.next().unwrap();
   let input = read_to_string(filename).unwrap();
 
-  let public_keys = input
+  let public_keys: Vec<Scalar> = input
     .split('\n')
     .filter(|s| s.len() > 0)
     .map(|s| s.parse::<Scalar>().unwrap())
-    .collect::<Vec<Scalar>>();
+    .collect();
 
-  let loop_sizes = public_keys
+  let loop_sizes: Vec<_> = public_keys
     .iter()
-    .map(|&v| find_loop_size(v))
-    .collect::<Vec<_>>();
+    .map(|p| {
+      transform(7)
+        .enumerate()
+        .filter(|(_, v)| v == p)
+        .next()
+        .map(|(i, _)| i)
+        .unwrap()
+    })
+    .collect();
 
-  let encryption_keys = public_keys
+  let encryption_keys: Vec<_> = public_keys
     .iter()
     .rev()
     .zip(loop_sizes.iter())
     .map(|(&k, &i)| transform(k).skip(i).next().unwrap())
-    .collect::<Vec<_>>();
+    .collect();
 
   assert_eq!(encryption_keys[0], encryption_keys[1]);
   println!("the encryption key is {}", encryption_keys[0]);
