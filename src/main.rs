@@ -43,8 +43,8 @@ fn main() {
       transform(7)
         .enumerate()
         .filter(|(_, v)| v == p)
-        .next()
         .map(|(i, _)| i)
+        .next()
         .unwrap()
     })
     .collect();
