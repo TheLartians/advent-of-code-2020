@@ -25,19 +25,27 @@ fn transform(subject_number: Scalar) -> Transformer {
   };
 }
 
+trait CollectPair: Iterator {
+  fn collect_pair(&mut self) -> [Self::Item; 2] {
+    return [self.next().unwrap(), self.next().unwrap()];
+  }
+}
+
+impl<I: Iterator> CollectPair for I {}
+
 fn main() {
   let mut args = env::args();
   args.next();
   let filename = args.next().unwrap();
   let input = read_to_string(filename).unwrap();
 
-  let public_keys: Vec<Scalar> = input
+  let public_keys = input
     .split('\n')
     .filter(|s| s.len() > 0)
     .map(|s| s.parse().unwrap())
-    .collect();
+    .collect_pair();
 
-  let loop_sizes: Vec<_> = public_keys
+  let loop_sizes = public_keys
     .iter()
     .map(|p| {
       transform(7)
@@ -47,14 +55,14 @@ fn main() {
         .next()
         .unwrap()
     })
-    .collect();
+    .collect_pair();
 
-  let encryption_keys: Vec<_> = public_keys
+  let encryption_keys = public_keys
     .iter()
     .rev()
     .zip(loop_sizes.iter())
     .map(|(&k, &i)| transform(k).skip(i).next().unwrap())
-    .collect();
+    .collect_pair();
 
   assert_eq!(encryption_keys[0], encryption_keys[1]);
   println!("the encryption key is {}", encryption_keys[0]);
